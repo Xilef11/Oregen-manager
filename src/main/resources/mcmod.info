@@ -1,0 +1,16 @@
+[
+{
+  "modid": "oregenmanager",
+  "name": "Oregen manager",
+  "description": "mod that attempts to automatically manage ore generation.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "https://github.com/Xilef11/Oregen-manager",
+  "updateUrl": "",
+  "authorList": ["Xilef11"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": ["Forge"]
+}
+]

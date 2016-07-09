@@ -1,0 +1,233 @@
+import java.util.regex.Pattern
+//--- build aliases : define a synonym here if you want a shortcut to run multiple targets
+ //https://caffeineinduced.wordpress.com/2015/01/25/run-a-list-of-gradle-tasks-in-specific-order/
+def buildAliases = [
+   'release' : ['setReleaseNumber', 'build', 'githubRelease', 'curseforge', 'incrementBuildNumber']
+   //'release' : ['setReleaseNumber', 'build']
+]
+def expandedTaskList = []
+ 
+gradle.startParameter.taskNames.each {
+   expandedTaskList << (buildAliases[it] ? buildAliases[it] : it)
+}
+ 
+gradle.startParameter.taskNames = expandedTaskList.flatten()
+ 
+println "\n\texpanded task list: ${gradle.startParameter.taskNames }\n"
+
+// For those who want the bleeding edge
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
+		maven{
+			url "https://plugins.gradle.org/m2/"
+		}
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+		classpath 'co.riiid:gradle-github-plugin:0.4.2'
+		classpath "gradle.plugin.com.matthewprenger:CurseGradle:1.0.7"
+    }
+}
+/*
+// for people who want stable - not yet functional for MC 1.8.8 - we require the forgegradle 2.1 snapshot
+plugins {
+    id "net.minecraftforge.gradle.forge" version "2.0.2"
+}
+*/
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'co.riiid.gradle' 
+apply plugin: "com.matthewprenger.cursegradle"
+
+//https://github.com/riiid/gradle-github-plugin for auto github releases
+//https://github.com/matthewprenger/CurseGradle for auto curseforge releases
+def majorVersion = "0"
+def minorVersion = "1"
+def bugfix = ""
+def devVersion = "-dev"
+def forgeVersion="1.10.2-12.18.0.2010"
+def mcVersion = forgeVersion.substring(0,forgeVersion.indexOf('-'))
+
+def username = 'ForgeDevName'
+//set from command line with -Pdev_username=name
+if (project.hasProperty('dev_username'))
+username = "${dev_username}"
+
+version = "${mcVersion}-${majorVersion}.${minorVersion}${bugfix}${devVersion}"
+group= "xilef11.mc.oregenmanager" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
+archivesBaseName = "OregenManager"
+
+//must be run before all other configs (but after initially setting the version)
+task('setReleaseNumber') {
+	//println "setRelease: config"
+	if(gradle.startParameter.taskNames.contains('setReleaseNumber')){
+		print "setReleaseNumber changing "+project.version+" to "
+		project.setProperty('version',"${mcVersion}-${majorVersion}.${minorVersion}${bugfix}")
+		println project.version
+	}
+}
+
+minecraft {
+    version = forgeVersion
+    runDir = "run"
+    
+    clientRunArgs += "--username=${username}"
+    
+    // the mappings can be changed at any time, and must be in the following format.
+    // snapshot_YYYYMMDD   snapshot are built nightly.
+    // stable_#            stables are built at the discretion of the MCP team.
+    // Use non-default mappings at your own risk. they may not allways work.
+    // simply re-run your setup task after changing the mappings to update your workspace.
+    mappings = "snapshot_20160518"
+    // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
+	replace '@VERSION@', project.version
+	replaceIn 'Refs.java'
+}
+
+dependencies {
+    // you may put jars on which you depend on in ./libs
+    // or you may define them like so..
+    //compile "some.group:artifact:version:classifier"
+    //compile "some.group:artifact:version"
+      
+    // real examples
+    //compile 'com.mod-buildcraft:buildcraft:6.0.8:dev'  // adds buildcraft to the dev env
+    //compile 'com.googlecode.efficient-java-matrix-library:ejml:0.24' // adds ejml to the dev env
+
+    // the 'provided' configuration is for optional dependencies that exist at compile-time but might not at runtime.
+    //provided 'com.mod-buildcraft:buildcraft:6.0.8:dev'
+
+    // the deobf configurations:  'deobfCompile' and 'deobfProvided' are the same as the normal compile and provided,
+    // except that these dependencies get remapped to your current MCP mappings
+    //deobfCompile 'com.mod-buildcraft:buildcraft:6.0.8:dev'
+    //deobfProvided 'com.mod-buildcraft:buildcraft:6.0.8:dev'
+	
+    // for more info...
+    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
+    // http://www.gradle.org/docs/current/userguide/dependency_management.html
+}
+
+processResources
+{
+    // this will ensure that this task is redone when the versions change.
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    // replace stuff in mcmod.info, nothing else
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+                
+        // replace version and mcversion
+        expand 'version':project.version, 'mcversion':project.minecraft.version
+    }
+        
+    // copy everything else, thats not the mcmod.info
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+	sourceCompatibility=1.6
+	targetCompatibility=1.7
+}
+
+//custom tasks and configs
+
+task('incrementBuildNumber') << {
+//http://stackoverflow.com/questions/17448565/how-to-autoincrement-versioncode-in-android-gradle
+	def buildscript = file("build.gradle")
+	def manifestContent=""
+	def versionCode=""
+	def buildnum=""
+	if(bugfix.length()==0){
+		def pattern = Pattern.compile("minorVersion = \"(\\d+)\"")
+		def text = buildscript.getText()
+		def matcher = pattern.matcher(text)
+		matcher.find()
+		versionCode = Integer.parseInt(matcher.group(1))
+		manifestContent = matcher.replaceAll("minorVersion = \"" + ++versionCode + "\"")
+		buildnum="${mcVersion}-${majorVersion}.${versionCode}${bugfix}${devVersion}"
+		println "incremented build number to ${buildnum}"
+	}else{
+		def pattern = Pattern.compile("bugfix = \"\\.(\\d+)\"")
+		def text = buildscript.getText()
+		def matcher = pattern.matcher(text)
+		matcher.find()
+		versionCode = Integer.parseInt(matcher.group(1))
+		manifestContent = matcher.replaceAll("bugfix = \"." + ++versionCode + "\"")
+		buildnum = "${mcVersion}-${majorVersion}.${minorVersion}.${versionCode}${devVersion}"
+		println "incremented build number to ${buildnum}"
+	}
+	
+    buildscript.write(manifestContent)
+	
+	//clear changelog
+	file("changelog.md").write("")
+	
+	//commit
+	"git commit -a -m \"Increment version to ${buildnum} after release\"".execute()
+}
+
+task gitPush << {
+		"git push".execute()
+}
+
+//https://github.com/riiid/gradle-github-plugin
+githubRelease.onlyIf{project.hasProperty('githubKey')}
+githubRelease.dependsOn(gitPush)//make sure everything is pushed before release so github tags the right thing
+github {
+	if(project.hasProperty('githubKey')){
+		//println "github: "+project.version
+		owner = 'Xilef11'
+		repo = 'Oregen-manager'
+		token = project.githubKey
+		tagName = 'v'+project.version
+		name=tagName
+		targetCommitish = 'master'
+		draft=false
+		prerelease = project.version.contains(devVersion)
+		body = "Changelog:\n"+file('changelog.md').getText()+"\n\nBuilt with Forge "+forgeVersion
+		assets = [
+				"build/libs/${project.archivesBaseName}-${project.version}.jar"
+				//,"build/libs/${project.archivesBaseName}-${project.version}-sources.jar"
+		]
+	}else{
+		println "no GitHub token found as project.githubKey"
+	}
+}
+
+//https://github.com/matthewprenger/CurseGradle
+/*
+tasks.curseforge.onlyIf{project.hasProperty('curseKey')}
+curseforge {
+if(project.hasProperty('curseKey')){
+	  apiKey = project.curseKey
+	  project {
+		id = '243956'
+		addGameVersion mcVersion
+		addGameVersion 'Java 8'
+		addGameVersion 'Java 7'
+		addGameVersion '1.10'
+		addGameVersion '1.10.2'
+		//version pulled from ForgeGradle includes java 6
+		changelogType='markdown'
+		changelog = file('changelog.md').getText()+"\n\nBuilt with Forge "+forgeVersion+" and "+row
+		releaseType = 'beta'
+		mainArtifact jar
+		relations{
+			requiredLibrary 'runes-of-wizardry'
+		}
+	  }
+  }else{
+	println "no CurseForge key found as project.curseKey"
+  }
+}
+*/
+

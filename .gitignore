@@ -1,0 +1,32 @@
+#gradle things
+gradle
+.gradle
+/run/
+
+#intelliJ things
+.idea
+Runes-of-Wizardry.iws
+Runes-of-Wizardry.iml
+Runes-of-Wizardry.ipr
+
+#NetBeans things
+.nb*
+
+#eclipse things
+.classpath
+.project
+.settings
+eclipse/
+/bin/
+*.launch
+
+#build
+build
+
+#Forge files
+CREDITS-fml.txt
+LICENSE-fml.txt
+MinecraftForge-Credits.txt
+MinecraftForge-License.txt
+README.txt
+forge-*-changelog.txt
