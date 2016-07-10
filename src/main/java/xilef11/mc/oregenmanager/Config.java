@@ -44,10 +44,12 @@ public class Config {
 		}
 	}
 	public static boolean dumpOres;
+	public static boolean useEvent;
 	
 	private static void loadConfiguration(){
 		//read properties
 		dumpOres = config.getBoolean("List ores", CATEGORY_GENERAL, true, "Output all \"oreXX\" oreDictionary entries when starting the game");
+		useEvent = config.getBoolean("Use Event Handling", CATEGORY_GENERAL, true, "The XXX event will be used to disable ore generation. may or may not be fiered by mods.");
 		if(config.hasChanged()){
 			//ModLogger.logInfo("Config has changed");
 			config.save();
