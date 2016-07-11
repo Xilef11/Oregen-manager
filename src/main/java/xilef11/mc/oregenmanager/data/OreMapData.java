@@ -13,6 +13,7 @@ import net.minecraft.world.WorldSavedData;
 import net.minecraft.world.storage.MapData;
 import net.minecraft.world.storage.MapStorage;
 import xilef11.mc.oregenmanager.Refs;
+import xilef11.mc.oregenmanager.utils.ModLogger;
 
 public class OreMapData extends WorldSavedData {
 	private static final String DATA_NAME = Refs.MODID + "_OreMapData";
@@ -50,7 +51,9 @@ public class OreMapData extends WorldSavedData {
 			//TODO this cause a FCFS way of managing the oregen. we may want to change that in the future
 			oremap.put(oreID, blockStr);
 		}
-		return blockStr.equals(stored);
+		boolean accepted = blockStr.equals(stored);
+		ModLogger.logInfo(blockStr+(accepted?" ACCEPTED ":" NOT ACCEPTED ")+"for OreID "+oreID);
+		return accepted;
 		
 	}
 	private String getID(IBlockState state){
